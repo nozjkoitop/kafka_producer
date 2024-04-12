@@ -2,8 +2,6 @@ version: '3'
 services:
   zookeeper:
     image: docker.io/bitnami/zookeeper:3.7
-    ports:
-      - "2181:2181"
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
       - ZOO_AUTOPURGE_INTERVAL=1
