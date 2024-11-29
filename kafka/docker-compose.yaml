@@ -31,22 +31,40 @@ services:
     logging:
       driver: none
 
-  # create kafka raw topic
-  kafka-init:
+##   additional topic creation
+#  kafka-sink:
+#    image: docker.io/bitnami/kafka:3
+#    networks:
+#      - container
+#    command: [ "/bin/bash", "-c", "/consume_messages.sh"]
+#    environment:
+#      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+#      - TEST_TOPIC_NAME=test-sink
+#    depends_on:
+#      kafka:
+#        condition: service_started
+#    volumes:
+#      - type: bind
+#        source: ./consume_messages.sh
+#        target: /consume_messages.sh
+#    init: true
+
+  kafka-consumer:
     image: docker.io/bitnami/kafka:3
     networks:
       - container
-    command: [ "/bin/bash", "-c", "/create_topic.sh"]
+    command: [ "/bin/bash", "-c", "/consume_messages.sh" ]
     environment:
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - TEST_TOPIC_NAME=test
+      - TEST_TOPIC_GROUP_NAME=test_group
     depends_on:
       kafka:
         condition: service_started
     volumes:
       - type: bind
-        source: ./create_topic.sh
-        target: /create_topic.sh
+        source: ./consume_messages.sh
+        target: /consume_messages.sh
     init: true
 
 networks:
