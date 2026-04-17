@@ -1,73 +1,73 @@
-version: '3'
 services:
-  zookeeper:
-    image: docker.io/bitnami/zookeeper:3.7
-    environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-      - ZOO_AUTOPURGE_INTERVAL=1
-    networks:
-      - container
-    logging:
-      driver: none
-
   kafka:
-    image: docker.io/bitnami/kafka:3
+    image: apache/kafka:4.0.2
+    container_name: kafka
     ports:
       - "9093:9093"
     environment:
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_ZOOKEEPER_TLS_VERIFY_HOSTNAME=false
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-    depends_on:
-      zookeeper:
-        condition: service_started
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: CLIENT://:9092,EXTERNAL://:9093,CONTROLLER://:9094
+      KAFKA_ADVERTISED_LISTENERS: CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: CLIENT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9094
+
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     networks:
       - container
+    healthcheck:
+      test: [ "CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     logging:
       driver: none
 
-##   additional topic creation
-#  kafka-sink:
-#    image: docker.io/bitnami/kafka:3
-#    networks:
-#      - container
-#    command: [ "/bin/bash", "-c", "/consume_messages.sh"]
-#    environment:
-#      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-#      - TEST_TOPIC_NAME=test-sink
-#    depends_on:
-#      kafka:
-#        condition: service_started
-#    volumes:
-#      - type: bind
-#        source: ./consume_messages.sh
-#        target: /consume_messages.sh
-#    init: true
-
-  kafka-consumer:
-    image: docker.io/bitnami/kafka:3
+  kafka-init:
+    image: apache/kafka:4.0.2
     networks:
       - container
-    command: [ "/bin/bash", "-c", "/consume_messages.sh" ]
+    command: [ "/bin/sh", "/create_topic.sh" ]
     environment:
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - TEST_TOPIC_NAME=test
-      - TEST_TOPIC_GROUP_NAME=test_group
+      BOOTSTRAP_SERVER: kafka:9092
+      TEST_TOPIC_NAME: test
+    volumes:
+      - type: bind
+        source: ./create_topic.sh
+        target: /create_topic.sh
+        read_only: true
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
+    init: true
+
+  kafka-consumer:
+    image: apache/kafka:4.0.2
+    networks:
+      - container
+    command: [ "/bin/sh", "/consume_messages.sh" ]
+    environment:
+      BOOTSTRAP_SERVER: kafka:9092
+      TEST_TOPIC_NAME: test
+      TEST_TOPIC_GROUP_NAME: test_group
     volumes:
       - type: bind
         source: ./consume_messages.sh
         target: /consume_messages.sh
+        read_only: true
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
     init: true
 
 networks:
   container:
     driver: bridge
-

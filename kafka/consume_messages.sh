@@ -1,9 +1,12 @@
-#!/bin/bash
-sleep 5
+#!/usr/bin/env sh
+set -eu
 
-/opt/bitnami/kafka/bin/kafka-topics.sh --create --topic $TEST_TOPIC_NAME --bootstrap-server kafka:9092
+: "${BOOTSTRAP_SERVER:=kafka:9092}"
+: "${TEST_TOPIC_NAME:?TEST_TOPIC_NAME is required}"
+: "${TEST_TOPIC_GROUP_NAME:?TEST_TOPIC_GROUP_NAME is required}"
 
-sleep 1
-
-/opt/bitnami/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic $TEST_TOPIC_NAME --group $TEST_TOPIC_GROUP_NAME --from-beginning
-
+exec /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server "$BOOTSTRAP_SERVER" \
+  --topic "$TEST_TOPIC_NAME" \
+  --group "$TEST_TOPIC_GROUP_NAME" \
+  --from-beginning

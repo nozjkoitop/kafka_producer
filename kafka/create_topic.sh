@@ -1,4 +1,13 @@
-#/bin/bash
+#!/usr/bin/env sh
+set -eu
 
-/opt/bitnami/kafka/bin/kafka-topics.sh --create --topic $TEST_TOPIC_NAME --bootstrap-server kafka:9092
-echo "topic $TEST_TOPIC_NAME was create"
+: "${BOOTSTRAP_SERVER:=kafka:9092}"
+: "${TEST_TOPIC_NAME:?TEST_TOPIC_NAME is required}"
+
+/opt/kafka/bin/kafka-topics.sh \
+  --create \
+  --if-not-exists \
+  --topic "$TEST_TOPIC_NAME" \
+  --bootstrap-server "$BOOTSTRAP_SERVER"
+
+echo "topic $TEST_TOPIC_NAME is ready"
